@@ -1,0 +1,21 @@
+{
+  "name": "Mastodon OAuth Example",
+  "description": "A simple example that uses Flask and SQLAlchemy to explore OAuth login with Mastodon",
+  "keywords": ["oauth"],
+  "website": "https://github.com/singingwolfboy/mastodon-oauth-example",
+  "repository": "https://github.com/singingwolfboy/mastodon-oauth-example",
+  "env": {
+    "FLASK_SECRET_KEY": {
+      "description": "A secret key for verifying the integrity of signed cookies.",
+      "generator": "secret"
+    },
+    "APP_NAME": {
+      "description": "The name to show on the Mastodon OAuth consent screen.",
+      "value": "Mastodon OAuth Example"
+    }
+  },
+  "addons": [{ "plan": "heroku-postgresql" }],
+  "scripts": {
+    "postdeploy": "flask create-db"
+  }
+}

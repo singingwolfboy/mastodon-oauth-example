@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<head>
+    <title>{{ config.APP_NAME }}</title>
+</head>
+<body>
+{% if current_user.is_authenticated %}
+    You are logged in as {{ current_user.acct }}!
+  <a href="{{ url_for("logout") }}">Log out</a>
+{% else %}
+  You are not logged in.
+  <form method="POST" action="{{ url_for("auth.login") }}">
+    <label for="server_uri">Server URL</label>
+    <input type="text" name="server_uri" id="server_uri" />
+    <button type="submit">Log in</button>
+  </form>
+{% endif %}
+</body>
