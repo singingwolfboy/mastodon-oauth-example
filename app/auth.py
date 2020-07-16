@@ -60,7 +60,7 @@ def login():
         db.session.add(server)
         db.session.commit()
 
-    # generate and save a state
+    # generate and save a `state` token
     state = random_string(10)
     flask.session["state"] = state
     # also save the server_uri
@@ -81,26 +81,31 @@ def login():
 
 @blueprint.route("/authorized", methods=["GET"])
 def authorized():
+    # check for `code` param; needed to prove that user provided consent
     code = request.args.get("code")
     if not code:
         return {"message": "missing `code` query param"}, 400
-    state = request.args.get("state")
-    if not code:
-        return {"message": "missing `state` query param"}, 400
 
+    # validate `state` token, if present
     saved_state = flask.session.get("state")
-    if not saved_state:
-        return {"message": "missing `state` from session cookie"}, 400
-    if state != saved_state:
-        return {"message": "invalid `state` query param"}, 400
+    if saved_state:
+        state = request.args.get("state")
+        if state != saved_state:
+            return {"message": "missing or invalid `state` query param"}, 400
+        # delete `state` token from Flask session; we don't need it anymore
+        del flask.session["state"]
 
+    # get the Mastodon server info from the database
     server_uri = flask.session.get("server_uri")
     if not server_uri:
-        return {"message": "missing `mastodon_server_uri` from session cookie"}, 400
+        return {"message": "missing `server_uri` from session cookie"}, 400
     server = MastodonServer.get_by_uri(server_uri)
     if not server:
         return {"message": f"unknown Mastodon server: {server_uri}"}, 400
+    # delete the `server_uri` from Flask session; we don't need it anymore
+    del flask.session["server_uri"]
 
+    # get the OAuth access token from the server
     auth_data = {
         "client_id": server.client_id,
         "client_secret": server.client_secret,
@@ -120,7 +125,8 @@ def authorized():
         )
     auth_resp_data = auth_resp.json()
     access_token = auth_resp_data["access_token"]
-    # We have our access token! Let's find out who the remote user is.
+
+    # use the access token to get information from Mastodon about the user
     account_resp = httpx.get(
         f"https://{server_uri}/api/v1/accounts/verify_credentials",
         headers={"Authorization": f"Bearer {access_token}"},
@@ -135,7 +141,7 @@ def authorized():
         )
     account_resp_data = account_resp.json()
 
-    # find or create our local user
+    # find or create our local user account
     user = User.query.filter_by(
         server=server, id_on_server=account_resp_data["id"]
     ).first()
@@ -154,10 +160,7 @@ def authorized():
         db.session.add(user)
         db.session.commit()
 
-    # login our local user
+    # login the local user account
     login_user(user)
 
-    # delete unneeded values from Flask session
-    del flask.session["state"]
-    del flask.session["server_uri"]
     return redirect(url_for("index"))
