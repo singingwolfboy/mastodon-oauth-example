@@ -3,6 +3,7 @@ import random
 import re
 from string import ascii_letters, digits
 import httpx
+from httpcore import ConnectError
 import flask
 from flask import Blueprint, current_app, request, url_for, redirect
 from flask_login import current_user, login_user
@@ -42,7 +43,10 @@ def login():
             "scopes": "read:accounts",
             "website": request.url_root,
         }
-        app_resp = httpx.post(f"https://{server_uri}/api/v1/apps", data=app_data)
+        try:
+            app_resp = httpx.post(f"https://{server_uri}/api/v1/apps", data=app_data)
+        except ConnectError:
+            return {"message": f"could not connect to https://{server_uri}"}, 400
         if app_resp.status_code != 200:
             return (
                 {
@@ -114,7 +118,10 @@ def authorized():
         "grant_type": "authorization_code",
         "code": code,
     }
-    auth_resp = httpx.post(f"https://{server_uri}/oauth/token", data=auth_data)
+    try:
+        auth_resp = httpx.post(f"https://{server_uri}/oauth/token", data=auth_data)
+    except ConnectError:
+        return {"message": f"could not connect to https://{server_uri}"}, 502
     if auth_resp.status_code != 200:
         return (
             {
